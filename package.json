@@ -1,0 +1,54 @@
+{
+  "name": "thoth",
+  "version": "0.1.0",
+  "description": "Autonomous LMS agent for Brightspace (D2L) — VIP research project",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "postinstall": "node scripts/setup.js",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "demo": "tsx src/index.ts --demo",
+    "dev": "tsx src/index.ts",
+    "dev:debug": "tsx src/index.ts --debug",
+    "cli": "node dist/index.js --cli",
+    "scan": "node dist/index.js --scan-only",
+    "auto": "node dist/index.js --auto",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.41",
+    "ai": "^6.0.168",
+    "better-sqlite3": "^12.9.0",
+    "chalk": "^5.6.2",
+    "cli-table3": "^0.6.5",
+    "cors": "^2.8.6",
+    "docx": "^9.6.1",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "express": "^5.2.1",
+    "node-cron": "^4.2.1",
+    "otpauth": "^9.5.0",
+    "playwright": "^1.59.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.6.0",
+    "@types/node-cron": "^3.0.11",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  }
+}

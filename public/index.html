@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thoth — LMS Agent Dashboard</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+    --green: #3fb950; --red: #f85149; --yellow: #d29922;
+    --blue: #58a6ff; --purple: #bc8cff; --cyan: #39d2e0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Header */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 20px; font-weight: 600; }
+  header h1 span { color: var(--accent); }
+  .header-actions { display: flex; gap: 8px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+  .status-dot.connected { background: var(--green); }
+  .status-dot.disconnected { background: var(--red); }
+
+  /* Layout */
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; }
+  .card-body { padding: 16px; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
+  .stat-value { font-size: 28px; font-weight: 700; }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value.pending { color: var(--yellow); }
+  .stat-value.submitted { color: var(--green); }
+  .stat-value.failed { color: var(--red); }
+  .stat-value.total { color: var(--accent); }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  tr:hover { background: rgba(88, 166, 255, 0.04); }
+
+  /* Status badges */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-pending { background: rgba(210, 153, 34, 0.15); color: var(--yellow); }
+  .badge-in-progress { background: rgba(88, 166, 255, 0.15); color: var(--blue); }
+  .badge-submitted { background: rgba(63, 185, 80, 0.15); color: var(--green); }
+  .badge-failed { background: rgba(248, 81, 73, 0.15); color: var(--red); }
+  .badge-waiting-for-peers { background: rgba(188, 140, 255, 0.15); color: var(--purple); }
+  .badge-ready { background: rgba(57, 210, 224, 0.15); color: var(--cyan); }
+
+  /* Buttons */
+  .btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+  .btn:hover { border-color: var(--accent); background: rgba(88, 166, 255, 0.1); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: #4a94e8; }
+  .btn-success { background: var(--green); color: #fff; border-color: var(--green); }
+  .btn-danger { background: var(--red); color: #fff; border-color: var(--red); }
+  .btn-sm { padding: 3px 8px; font-size: 11px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Log */
+  .log-container { height: 350px; overflow-y: auto; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; line-height: 1.6; padding: 8px; }
+  .log-entry { padding: 1px 0; }
+  .log-time { color: var(--muted); }
+  .log-level-info { color: var(--blue); }
+  .log-level-success { color: var(--green); }
+  .log-level-warn { color: var(--yellow); }
+  .log-level-error { color: var(--red); }
+  .log-level-debug { color: var(--muted); }
+
+  /* Sidebar */
+  .sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Quick actions */
+  .actions { display: flex; flex-direction: column; gap: 8px; }
+  .action-row { display: flex; gap: 8px; }
+
+  /* Google Form input */
+  .form-input { display: flex; gap: 8px; }
+  .form-input input { flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 13px; }
+  .form-input input:focus { outline: none; border-color: var(--accent); }
+  .form-input input::placeholder { color: var(--muted); }
+
+  /* Profile */
+  .profile-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .profile-row:last-child { border-bottom: none; }
+  .profile-key { color: var(--muted); }
+
+  /* Confirmation modal */
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 16px; }
+  .modal-body { padding: 20px; }
+  .modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+  .modal-field { margin-bottom: 12px; }
+  .modal-field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; }
+  .modal-field .value { font-size: 14px; }
+
+  /* Rubric check */
+  .rubric-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+  .rubric-pass { color: var(--green); }
+  .rubric-fail { color: var(--red); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* Deadline formatting */
+  .deadline-urgent { color: var(--red); font-weight: 600; }
+  .deadline-warning { color: var(--yellow); }
+  .deadline-ok { color: var(--muted); }
+
+  .empty-state { text-align: center; padding: 40px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>THOTH</span> &mdash; LMS Agent Dashboard</h1>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <span><span class="status-dot disconnected" id="connectionDot"></span><span id="connectionStatus">Connecting...</span></span>
+    <div class="header-actions">
+      <button class="btn btn-sm" onclick="refreshData()">Refresh</button>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Stats Row -->
+  <div class="stats" id="stats">
+    <div class="stat-card"><div class="stat-value total" id="statTotal">-</div><div class="stat-label">Total</div></div>
+    <div class="stat-card"><div class="stat-value pending" id="statPending">-</div><div class="stat-label">Pending</div></div>
+    <div class="stat-card"><div class="stat-value submitted" id="statSubmitted">-</div><div class="stat-label">Submitted</div></div>
+    <div class="stat-card"><div class="stat-value failed" id="statFailed">-</div><div class="stat-label">Failed</div></div>
+  </div>
+
+  <div class="grid">
+
+    <!-- Main Panel -->
+    <div>
+      <!-- Assignments Table -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          Assignments
+          <div>
+            <button class="btn btn-sm btn-primary" onclick="scanCourses()">Rescan</button>
+            <button class="btn btn-sm" onclick="processAll()">Process All</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0;overflow-x:auto;">
+          <table>
+            <thead><tr>
+              <th>#</th><th>Course</th><th>Title</th><th>Type</th><th>Deadline</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="assignmentsTable"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Live Log -->
+      <div class="card">
+        <div class="card-header">
+          Live Log
+          <button class="btn btn-sm" onclick="clearLog()">Clear</button>
+        </div>
+        <div class="log-container" id="logContainer"></div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <!-- Quick Actions -->
+      <div class="card">
+        <div class="card-header">Quick Actions</div>
+        <div class="card-body actions">
+          <button class="btn" onclick="scanCourses()" style="width:100%">Rescan All Courses</button>
+          <button class="btn" onclick="processAll()" style="width:100%">Process All Pending</button>
+          <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">GOOGLE FORM</div>
+            <div class="form-input">
+              <input type="text" id="formUrl" placeholder="Paste Google Form URL..." />
+              <button class="btn btn-primary" onclick="analyzeForm()">Go</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profile -->
+      <div class="card">
+        <div class="card-header">Student Profile</div>
+        <div class="card-body" id="profileCard">
+          <div class="empty-state">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Pending Confirmations -->
+      <div class="card" id="confirmationsCard" style="display:none;">
+        <div class="card-header" style="background:rgba(210,153,34,0.1);">
+          Pending Confirmations
+        </div>
+        <div class="card-body" id="confirmationsList"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <div class="modal-header" id="modalTitle">Confirm Submission</div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <input type="text" id="modalFeedback" placeholder="Describe changes needed..." style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;" />
+      <button class="btn btn-danger" onclick="respondConfirmation(false)">Reject</button>
+      <button class="btn btn-success" onclick="respondConfirmation(true)">Submit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let currentConfirmationId = null;
+
+// ── SSE Connection ─────────────────────────────────
+function connectSSE() {
+  const es = new EventSource(API + '/api/events');
+
+  es.onopen = () => {
+    document.getElementById('connectionDot').className = 'status-dot connected';
+    document.getElementById('connectionStatus').textContent = 'Connected';
+  };
+
+  es.onerror = () => {
+    document.getElementById('connectionDot').className = 'status-dot disconnected';
+    document.getElementById('connectionStatus').textContent = 'Disconnected';
+  };
+
+  es.addEventListener('log', (e) => {
+    const data = JSON.parse(e.data);
+    addLogEntry(data);
+  });
+
+  es.addEventListener('assignment', (e) => {
+    refreshData();
+  });
+
+  es.addEventListener('confirmation', (e) => {
+    const data = JSON.parse(e.data);
+    showConfirmation(data.id, data.request);
+  });
+
+  es.addEventListener('scan', (e) => {
+    const data = JSON.parse(e.data);
+    addLogEntry({ level: 'info', message: `Scan: ${data.course} — ${data.step} (${data.count})`, timestamp: new Date().toISOString() });
+  });
+}
+
+// ── Data Loading ───────────────────────────────────
+async function refreshData() {
+  try {
+    const [assignments, profile, confirmations] = await Promise.all([
+      fetch(API + '/api/assignments').then(r => r.json()),
+      fetch(API + '/api/profile').then(r => r.json()).catch(() => null),
+      fetch(API + '/api/confirmations').then(r => r.json()),
+    ]);
+
+    renderAssignments(assignments);
+    renderStats(assignments);
+    if (profile && !profile.error) renderProfile(profile);
+    if (confirmations.length > 0) {
+      showConfirmation(confirmations[0].id, confirmations[0].request);
+    }
+  } catch (err) {
+    console.error('Failed to load data:', err);
+  }
+}
+
+function renderStats(assignments) {
+  const pending = assignments.filter(a => ['pending','in-progress','waiting-for-peers','ready'].includes(a.status)).length;
+  const submitted = assignments.filter(a => a.status === 'submitted').length;
+  const failed = assignments.filter(a => a.status === 'failed').length;
+
+  document.getElementById('statTotal').textContent = assignments.length;
+  document.getElementById('statPending').textContent = pending;
+  document.getElementById('statSubmitted').textContent = submitted;
+  document.getElementById('statFailed').textContent = failed;
+}
+
+function renderAssignments(assignments) {
+  const tbody = document.getElementById('assignmentsTable');
+  if (assignments.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No assignments found. Click "Rescan" to scan courses.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = assignments.map(a => {
+    const deadline = formatDeadline(a.deadline);
+    const badgeClass = 'badge-' + a.status;
+    const canProcess = ['pending','ready'].includes(a.status);
+    const canReset = ['failed','submitted'].includes(a.status);
+
+    return `<tr>
+      <td style="color:var(--muted)">${a.id}</td>
+      <td>${esc(a.course)}</td>
+      <td><strong>${esc(a.title)}</strong></td>
+      <td><span class="badge">${a.type}</span></td>
+      <td class="${deadline.class}">${deadline.text}</td>
+      <td><span class="badge ${badgeClass}">${a.status}</span></td>
+      <td>
+        ${canProcess ? `<button class="btn btn-sm btn-primary" onclick="processOne(${a.id})">Process</button>` : ''}
+        ${canReset ? `<button class="btn btn-sm" onclick="resetOne(${a.id})">Reset</button>` : ''}
+        ${a.status === 'pending' ? `<button class="btn btn-sm" onclick="skipOne(${a.id})">Skip</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderProfile(p) {
+  document.getElementById('profileCard').innerHTML = `
+    <div class="profile-row"><span class="profile-key">Name</span><span>${esc(p.fullName)}</span></div>
+    <div class="profile-row"><span class="profile-key">Email</span><span>${esc(p.email)}</span></div>
+    <div class="profile-row"><span class="profile-key">ID</span><span>${esc(p.studentId)}</span></div>
+    <div class="profile-row"><span class="profile-key">Phone</span><span>${esc(p.phone || '—')}</span></div>
+    <div class="profile-row"><span class="profile-key">Major</span><span>${esc(p.major || '—')}</span></div>
+    <div class="profile-row"><span class="profile-key">Year</span><span>${esc(p.year || '—')}</span></div>
+    <div class="profile-row"><span class="profile-key">School</span><span>${esc(p.institution)}</span></div>
+  `;
+}
+
+// ── Actions ────────────────────────────────────────
+async function processOne(id) {
+  if (!confirm('Process this assignment?')) return;
+  addLogEntry({ level: 'info', message: `Processing assignment #${id}...`, timestamp: new Date().toISOString() });
+  await fetch(API + `/api/process/${id}`, { method: 'POST' });
+}
+
+async function processAll() {
+  if (!confirm('Process ALL pending assignments?')) return;
+  addLogEntry({ level: 'info', message: 'Processing all pending...', timestamp: new Date().toISOString() });
+  await fetch(API + '/api/process-all', { method: 'POST' });
+}
+
+async function scanCourses() {
+  addLogEntry({ level: 'info', message: 'Rescanning courses...', timestamp: new Date().toISOString() });
+  await fetch(API + '/api/scan', { method: 'POST' });
+}
+
+async function skipOne(id) {
+  if (!confirm('Skip this assignment?')) return;
+  await fetch(API + `/api/skip/${id}`, { method: 'POST' });
+  refreshData();
+}
+
+async function resetOne(id) {
+  await fetch(API + `/api/reset/${id}`, { method: 'POST' });
+  refreshData();
+}
+
+async function analyzeForm() {
+  const url = document.getElementById('formUrl').value.trim();
+  if (!url) return;
+  addLogEntry({ level: 'info', message: `Analyzing Google Form: ${url}`, timestamp: new Date().toISOString() });
+  try {
+    const res = await fetch(API + '/api/google-form/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      addLogEntry({ level: 'error', message: data.error, timestamp: new Date().toISOString() });
+      return;
+    }
+    showFormPreview(url, data);
+  } catch (err) {
+    addLogEntry({ level: 'error', message: String(err), timestamp: new Date().toISOString() });
+  }
+}
+
+function showFormPreview(url, analysis) {
+  currentConfirmationId = '__google_form__';
+  const modal = document.getElementById('confirmModal');
+  document.getElementById('modalTitle').textContent = 'Google Form: ' + analysis.title;
+
+  let body = '<div style="margin-bottom:12px;color:var(--muted);font-size:13px">' +
+    analysis.totalFields + ' fields &mdash; ' + analysis.autoFilledCount + ' from profile, ' +
+    analysis.aiFilledCount + ' AI-generated</div>';
+
+  body += analysis.fields.map(f => {
+    const src = f.autoFilled ? '<span style="color:var(--green)">[PROFILE]</span>'
+      : f.aiGenerated ? '<span style="color:var(--blue)">[AI]</span>'
+      : '<span style="color:var(--yellow)">[EMPTY]</span>';
+    const req = f.required ? '<span style="color:var(--red)">*</span>' : '';
+    return `<div class="modal-field">
+      <label>${req} ${src} ${esc(f.label)}</label>
+      <div class="value">${esc(f.proposedValue || '(no answer)')}</div>
+      ${f.options.length ? '<div style="font-size:11px;color:var(--muted)">Options: ' + esc(f.options.join(', ')) + '</div>' : ''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('modalBody').innerHTML = body;
+  modal.classList.add('active');
+
+  // Override the confirmation handler for Google Forms
+  window.__formData = { url, fields: analysis.fields };
+}
+
+// ── Confirmation Gate ──────────────────────────────
+function showConfirmation(id, request) {
+  currentConfirmationId = id;
+  const modal = document.getElementById('confirmModal');
+  document.getElementById('modalTitle').textContent = 'Confirm Submission';
+
+  const r = request;
+  let body = '';
+  if (r.title) body += `<div class="modal-field"><label>Assignment</label><div class="value">${esc(r.title)}</div></div>`;
+  if (r.course) body += `<div class="modal-field"><label>Course</label><div class="value">${esc(r.course)}</div></div>`;
+  if (r.type) body += `<div class="modal-field"><label>Type</label><div class="value">${esc(r.type)}</div></div>`;
+  if (r.deadline) body += `<div class="modal-field"><label>Deadline</label><div class="value">${esc(r.deadline)}</div></div>`;
+  if (r.fileInfo) body += `<div class="modal-field"><label>File</label><div class="value">${esc(r.fileInfo)}</div></div>`;
+
+  if (r.rubricCheck && r.rubricCheck.length) {
+    body += '<div class="modal-field"><label>Rubric Check</label>';
+    body += r.rubricCheck.map(c =>
+      `<div class="rubric-item"><span class="${c.passed ? 'rubric-pass' : 'rubric-fail'}">${c.passed ? 'PASS' : 'FAIL'}</span> ${esc(c.criterion)} <span style="color:var(--muted)">${esc(c.notes || '')}</span></div>`
+    ).join('');
+    body += '</div>';
+  }
+
+  if (r.previewText) {
+    body += `<div class="modal-field"><label>Preview</label><div class="value" style="max-height:200px;overflow-y:auto;font-size:12px;white-space:pre-wrap;background:var(--bg);padding:8px;border-radius:4px;">${esc(r.previewText.substring(0, 1000))}</div></div>`;
+  }
+
+  if (r.quizSummary) {
+    body += `<div class="modal-field"><label>Quiz Summary</label><div class="value" style="font-size:12px;white-space:pre-wrap;">${esc(r.quizSummary)}</div></div>`;
+  }
+
+  document.getElementById('modalBody').innerHTML = body;
+  modal.classList.add('active');
+
+  document.getElementById('confirmationsCard').style.display = 'block';
+  document.getElementById('confirmationsList').innerHTML =
+    `<div style="font-size:13px;color:var(--yellow);cursor:pointer;" onclick="document.getElementById('confirmModal').classList.add('active')">
+      1 pending confirmation &mdash; click to review
+    </div>`;
+}
+
+async function respondConfirmation(confirmed) {
+  const feedback = document.getElementById('modalFeedback').value;
+  document.getElementById('confirmModal').classList.remove('active');
+  document.getElementById('modalFeedback').value = '';
+
+  if (currentConfirmationId === '__google_form__' && window.__formData) {
+    if (confirmed) {
+      addLogEntry({ level: 'info', message: 'Submitting Google Form...', timestamp: new Date().toISOString() });
+      try {
+        const res = await fetch(API + '/api/google-form/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(window.__formData),
+        });
+        const data = await res.json();
+        addLogEntry({ level: data.success ? 'success' : 'error', message: data.success ? 'Form submitted!' : 'Form submission failed', timestamp: new Date().toISOString() });
+      } catch (err) {
+        addLogEntry({ level: 'error', message: String(err), timestamp: new Date().toISOString() });
+      }
+    }
+    window.__formData = null;
+    currentConfirmationId = null;
+    return;
+  }
+
+  if (currentConfirmationId) {
+    await fetch(API + `/api/confirm/${currentConfirmationId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmed, response: feedback || (confirmed ? 'submit' : 'rejected') }),
+    });
+    currentConfirmationId = null;
+    document.getElementById('confirmationsCard').style.display = 'none';
+  }
+}
+
+// ── Log ────────────────────────────────────────────
+function addLogEntry(data) {
+  const container = document.getElementById('logContainer');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  const time = data.timestamp ? data.timestamp.substring(11, 19) : '';
+  const levelClass = 'log-level-' + (data.level || 'info');
+  div.innerHTML = `<span class="log-time">${time}</span> <span class="${levelClass}">[${(data.level || 'info').toUpperCase()}]</span> ${esc(data.message || '')}`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+
+  // Keep max 500 entries
+  while (container.children.length > 500) container.removeChild(container.firstChild);
+}
+
+function clearLog() {
+  document.getElementById('logContainer').innerHTML = '';
+}
+
+// ── Helpers ────────────────────────────────────────
+function formatDeadline(iso) {
+  if (!iso || iso.startsWith('2099')) return { text: 'No deadline', class: 'deadline-ok' };
+  const d = new Date(iso);
+  const now = new Date();
+  const hours = (d - now) / (1000 * 60 * 60);
+
+  let text = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+  if (hours < 0) return { text: text + ' (OVERDUE)', class: 'deadline-urgent' };
+  if (hours < 6) return { text: text + ` (${Math.round(hours)}h)`, class: 'deadline-urgent' };
+  if (hours < 48) return { text: text + ` (${Math.round(hours)}h)`, class: 'deadline-warning' };
+  return { text: text + ` (${Math.round(hours/24)}d)`, class: 'deadline-ok' };
+}
+
+function esc(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = String(str);
+  return d.innerHTML;
+}
+
+// ── Init ───────────────────────────────────────────
+connectSSE();
+refreshData();
+setInterval(refreshData, 30000);
+</script>
+</body>
+</html>
