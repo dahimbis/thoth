@@ -68,7 +68,7 @@ async function performLogin(): Promise<Page> {
 
       await takeScreenshot(page, 'login-page');
 
-      // Wait for the page to settle — NYU may redirect to Shibboleth
+      // Wait for the page to settle  - NYU may redirect to Shibboleth
       await page.waitForLoadState('networkidle');
 
       // Detect the login form and fill credentials

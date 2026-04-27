@@ -3,7 +3,7 @@ import { insertAssignment, getAllAssignments, logAction } from '../db/queries.js
 import { logger } from '../ui/logger.js';
 
 /**
- * Demo mode — seeds the database with realistic mock assignments
+ * Demo mode  - seeds the database with realistic mock assignments
  * so you can test the dashboard, UI, and workflows without
  * connecting to Brightspace or having any API keys.
  */
@@ -155,7 +155,7 @@ export function seedDemoData(): void {
       status: 'failed' as const,
       pointsValue: 10,
       lmsItemId: 'inline-303',
-      lastAction: 'Upload failed — session expired',
+      lastAction: 'Upload failed  - session expired',
       notes: 'File saved at outputs/Demo_HIST-150_Reading_Response_Week_3.docx',
     },
   ];

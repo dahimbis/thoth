@@ -15,7 +15,7 @@ import { getConfig } from '../config.js';
 import { logger } from '../ui/logger.js';
 
 /**
- * Quiz Agent — answers quiz questions autonomously.
+ * Quiz Agent  - answers quiz questions autonomously.
  *
  * Strategy:
  * 1. Extract each question via page content parsing
@@ -240,8 +240,8 @@ async function applyAnswer(
       return typeAnswer(page, answer);
 
     case 'matching':
-      // Matching questions are complex — log and attempt best effort
-      logger.warn('Matching question type — attempting text-based answer');
+      // Matching questions are complex  - log and attempt best effort
+      logger.warn('Matching question type  - attempting text-based answer');
       return typeAnswer(page, answer);
 
     default:
@@ -263,7 +263,7 @@ export function buildQuizSummary(result: QuizResult): string {
   for (const a of result.answers) {
     const conf = `${Math.round(a.confidence * 100)}%`;
     const flag = a.confidence < 0.7 ? ' [LOW CONFIDENCE]' : '';
-    lines.push(`  Q${a.questionNumber} (${a.questionType}): ${a.selectedAnswer.substring(0, 80)} — confidence: ${conf}${flag}`);
+    lines.push(`  Q${a.questionNumber} (${a.questionType}): ${a.selectedAnswer.substring(0, 80)}  - confidence: ${conf}${flag}`);
   }
 
   if (result.skippedQuestions.length > 0) {

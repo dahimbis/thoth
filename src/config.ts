@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { z } from 'zod';
 
 const envSchema = z.object({
-  // Student profile — used to auto-fill forms, name assignments, etc.
+  // Student profile  - used to auto-fill forms, name assignments, etc.
   STUDENT_FIRST_NAME: z.string().min(1),
   STUDENT_LAST_NAME: z.string().min(1),
   STUDENT_EMAIL: z.string().email(),
@@ -17,7 +17,7 @@ const envSchema = z.object({
   BRIGHTSPACE_PASSWORD: z.string().min(1),
   BRIGHTSPACE_TOTP_SECRET: z.string().optional(),
 
-  // AI Providers — Portkey gateway (primary)
+  // AI Providers  - Portkey gateway (primary)
   PORTKEY_GATEWAY_URL: z.string().url().default('https://ai-gateway.apps.cloud.rt.nyu.edu/v1'),
   PORTKEY_API_KEY: z.string().min(1),
 
@@ -45,6 +45,11 @@ const envSchema = z.object({
     .string()
     .default('true')
     .transform((v) => v === 'true'),
+
+  // Computer-use capabilities
+  SCREENSHOT_INTERVAL: z.coerce.number().default(2000), // milliseconds between dashboard screenshot captures
+  BROWSER_PROFILE_PATH: z.string().optional(),           // Path to Chrome/Edge user data dir for session reuse
+  ACTIVE_TERM: z.string().optional(),                    // e.g., "Spring 2026"  - filters courses to this term
 });
 
 export type Config = z.infer<typeof envSchema>;
@@ -60,7 +65,7 @@ export function setDemoMode(enabled: boolean): void {
   _demoMode = enabled;
 }
 
-/** Demo/test config — no real credentials needed */
+/** Demo/test config  - no real credentials needed */
 const DEMO_CONFIG: Config = {
   STUDENT_FIRST_NAME: 'Alex',
   STUDENT_LAST_NAME: 'Demo',
@@ -87,6 +92,9 @@ const DEMO_CONFIG: Config = {
   QUIZ_AUTO_SUBMIT_THRESHOLD: 30,
   EMAIL_POLL_INTERVAL: 15,
   BROWSER_HEADLESS: true,
+  SCREENSHOT_INTERVAL: 2000,
+  BROWSER_PROFILE_PATH: undefined,
+  ACTIVE_TERM: undefined,
 };
 
 export function loadConfig(): Config {
@@ -129,6 +137,19 @@ export const SCREENSHOTS_DIR = resolve(PROJECT_ROOT, 'screenshots');
 export const SESSION_FILE = resolve(DATA_DIR, 'session.json');
 export const DB_PATH = resolve(DATA_DIR, 'assignments.db');
 export const PROFILE_FILE = resolve(DATA_DIR, 'profile.json');
+
+// ── Derived config constants ─────────────────────────
+export function getScreenshotInterval(): number {
+  return getConfig().SCREENSHOT_INTERVAL;
+}
+
+export function getBrowserProfilePath(): string | undefined {
+  return getConfig().BROWSER_PROFILE_PATH;
+}
+
+export function getActiveTerm(): string | undefined {
+  return getConfig().ACTIVE_TERM;
+}
 
 // ── Student Profile Helper ───────────────────────────
 export interface StudentProfile {

@@ -8,3 +8,9 @@ data/
 *.db-shm
 screenshots/
 outputs/
+
+# Kiro IDE files
+.kiro/
+
+# VS Code personal settings
+.vscode/

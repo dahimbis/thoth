@@ -87,7 +87,20 @@ export function initializeDatabase(): void {
       screenshot_path TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
+
+  // Add term column if it doesn't exist (migration for existing databases)
+  try {
+    sqlite.exec(`ALTER TABLE assignments ADD COLUMN term TEXT;`);
+  } catch {
+    // Column already exists  - ignore
+  }
 }
 
 export { schema };

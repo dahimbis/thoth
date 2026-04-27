@@ -10,7 +10,7 @@ import { buildDocx, generateFileName } from '../documents/docx-builder.js';
 import { getAssignmentDetails, submitAssignmentViaBrowser } from '../browser/pages/assignments.js';
 import { startQuizAttempt, submitQuiz } from '../browser/pages/quizzes.js';
 import { getDiscussionDetails, postToDiscussion, postToDiscussionViaBrowser } from '../browser/pages/discussions.js';
-import { requestConfirmation, notifyAutoSubmit } from '../ui/confirmation.js';
+import { requestConfirmation } from '../ui/confirmation.js';
 import { getBrightspaceClient } from '../api/client.js';
 import {
   updateAssignmentStatus,
@@ -111,7 +111,7 @@ async function processFileUpload(assignment: Assignment): Promise<void> {
 
   updateAssignment(assignment.id, { filePath });
 
-  // Confirmation gate
+  // Confirmation gate with full content preview
   const { confirmed, response } = await requestConfirmation({
     title: assignment.title,
     course: assignment.course,
@@ -121,6 +121,8 @@ async function processFileUpload(assignment: Assignment): Promise<void> {
     fileInfo: `${fileName} (${writingOutput.wordCount} words)`,
     rubricCheck: writingOutput.rubricCheck,
     previewText: writingOutput.finalVersion,
+    fullContent: writingOutput.finalVersion,
+    downloadUrl: `/api/screenshots/${encodeURIComponent(fileName)}`,
   });
 
   if (!confirmed) {
@@ -272,15 +274,30 @@ async function processQuiz(assignment: Assignment): Promise<void> {
   const result = await answerQuiz(page, state);
   const summary = buildQuizSummary(result);
 
+  // ── QUIZ SAFETY MODE ──────────────────────────────
+  // The agent NEVER auto-submits. Always wait for explicit user approval.
+  // Even if the timer was critical, we log it but don't submit.
+
   if (result.autoSubmitted) {
-    // Already submitted due to timer
-    notifyAutoSubmit(assignment.title, assignment.course, summary);
-    updateAssignmentStatus(assignment.id, 'submitted', 'Auto-submitted (timer critical)', summary);
-    logAction(assignment.id, 'quiz_auto_submitted', summary);
-    return;
+    // The quiz agent may have flagged this, but we override: do NOT submit
+    logger.warn(`Quiz timer was critical for "${assignment.title}" but auto-submit is disabled. Waiting for user approval.`);
+    logAction(assignment.id, 'quiz_timer_critical', `Timer was critical. Auto-submit blocked by safety mode.`);
   }
 
-  // Confirmation gate
+  // Emit notification for quiz readiness
+  const { emitNotification } = await import('../web/notifications.js');
+  emitNotification({
+    type: 'urgent',
+    category: 'quiz-ready',
+    title: `Quiz Ready: ${assignment.title}`,
+    message: `All questions answered for "${assignment.title}" (${assignment.course}). Review answers and submit manually.`,
+    metadata: {
+      assignmentId: assignment.id,
+      course: assignment.course,
+    },
+  });
+
+  // Confirmation gate  - user MUST approve
   const { confirmed } = await requestConfirmation({
     title: assignment.title,
     course: assignment.course,
@@ -288,18 +305,20 @@ async function processQuiz(assignment: Assignment): Promise<void> {
     deadline: assignment.deadline,
     targetUrl: page.url(),
     quizSummary: summary,
+    fullContent: summary, // Full answer details for preview
   });
 
   if (!confirmed) {
-    updateAssignmentStatus(assignment.id, 'in-progress', 'User reviewing quiz answers');
+    updateAssignmentStatus(assignment.id, 'in-progress', 'User reviewing quiz answers  - not submitted');
+    logAction(assignment.id, 'quiz_awaiting_approval', 'Quiz answers ready but user has not approved submission');
     return;
   }
 
-  // Submit quiz
+  // User explicitly approved  - now submit
   const submission = await submitQuiz(page);
 
   if (submission.success) {
-    updateAssignmentStatus(assignment.id, 'submitted', 'Quiz submitted', submission.receiptText.substring(0, 500));
+    updateAssignmentStatus(assignment.id, 'submitted', 'Quiz submitted (user approved)', submission.receiptText.substring(0, 500));
     logAction(assignment.id, 'quiz_submitted', summary, submission.screenshotPath);
     logger.success(`Quiz submitted: ${assignment.title}`, { course: assignment.course });
   } else {
@@ -341,7 +360,10 @@ async function processDiscussionPost(assignment: Assignment): Promise<void> {
     courseContext: assignment.course,
   });
 
-  // Confirmation gate
+  // Confirmation gate with full content preview
+  const repliesPreview = content.replies.map((r: any) => `Reply to ${r.targetAuthor}:\n${r.content}`).join('\n\n---\n\n');
+  const fullDiscussionContent = `ORIGINAL POST:\n${content.originalPost}\n\n---\n\nREPLIES:\n${repliesPreview}`;
+
   const { confirmed, response } = await requestConfirmation({
     title: assignment.title,
     course: assignment.course,
@@ -349,6 +371,7 @@ async function processDiscussionPost(assignment: Assignment): Promise<void> {
     deadline: assignment.deadline,
     targetUrl: '',
     previewText: content.originalPost,
+    fullContent: fullDiscussionContent,
     fileInfo: `${content.wordCount} words, ${content.replies.length} replies`,
   });
 
@@ -411,6 +434,16 @@ async function processExternalTool(assignment: Assignment): Promise<void> {
   const actualType = await classifyAssignment(page, { title: assignment.title });
 
   logger.info(`External tool detected. Inner type: ${actualType}`, { course: assignment.course });
+
+  // Notify about external tool detection
+  const { emitNotification } = await import('../web/notifications.js');
+  emitNotification({
+    type: 'warning',
+    category: 'external-tool',
+    title: `External Tool: ${assignment.title}`,
+    message: `Detected external tool for "${assignment.title}" (${assignment.course}). Inner type: ${actualType}. Some external tools may require manual action.`,
+    metadata: { course: assignment.course, innerType: actualType },
+  });
 
   // Re-route to the appropriate procedure
   const innerAssignment: Assignment = {

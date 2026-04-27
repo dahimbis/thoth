@@ -4,12 +4,12 @@ import { getConfig } from '../config.js';
 import { logger } from '../ui/logger.js';
 
 /**
- * Research Agent — gathers external sources for assignments.
+ * Research Agent  - gathers external sources for assignments.
  *
  * Supports multiple search backends:
  * - Tavily (primary)
  * - Perplexity (fallback)
- * - None (stub — returns empty results)
+ * - None (stub  - returns empty results)
  */
 
 export interface SearchResult {
@@ -235,6 +235,6 @@ export function formatCitations(results: ResearchResult[], style: string): strin
         .join('\n');
 
     default:
-      return unique.map((s, i) => `[${i + 1}] ${s.title} — ${s.url}`).join('\n');
+      return unique.map((s, i) => `[${i + 1}] ${s.title}  - ${s.url}`).join('\n');
   }
 }

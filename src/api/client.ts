@@ -78,7 +78,7 @@ export class BrightspaceClient {
         }
 
         throw new Error(
-          `Brightspace API error: ${response.status} ${response.statusText} — ${errBody}`,
+          `Brightspace API error: ${response.status} ${response.statusText}  - ${errBody}`,
         );
       }
 
@@ -138,7 +138,7 @@ export class BrightspaceClient {
 
     if (!response.ok) {
       const errBody = await response.text().catch(() => '');
-      throw new Error(`File upload failed: ${response.status} ${response.statusText} — ${errBody}`);
+      throw new Error(`File upload failed: ${response.status} ${response.statusText}  - ${errBody}`);
     }
 
     const contentType = response.headers.get('content-type') ?? '';

@@ -67,7 +67,7 @@ export function showStatusLine(): void {
   const next = pending[0]; // Already sorted by deadline
   if (next) {
     console.log(
-      chalk.dim(`[STATUS] Next: "${next.title}" (${next.course}) — ${next.status} — due ${formatTimeRemaining(next.deadline)}`),
+      chalk.dim(`[STATUS] Next: "${next.title}" (${next.course})  - ${next.status}  - due ${formatTimeRemaining(next.deadline)}`),
     );
   }
 }

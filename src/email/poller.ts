@@ -2,7 +2,7 @@ import { getConfig } from '../config.js';
 import { logger } from '../ui/logger.js';
 
 /**
- * Email Poller — polls Gmail for incoming institutional emails.
+ * Email Poller  - polls Gmail for incoming institutional emails.
  *
  * SCAFFOLD: Gmail API integration deferred.
  * This module provides the interface and structure.

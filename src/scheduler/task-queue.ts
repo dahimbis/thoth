@@ -3,7 +3,7 @@ import { logger } from '../ui/logger.js';
 import type { Assignment } from '../db/schema.js';
 
 /**
- * Task Queue — prioritized by deadline proximity.
+ * Task Queue  - prioritized by deadline proximity.
  * Re-sorted after every database update.
  */
 
@@ -52,7 +52,7 @@ export function logTaskQueue(): void {
   const queue = getTaskQueue();
 
   if (queue.length === 0) {
-    logger.info('Task queue is empty — all assignments submitted');
+    logger.info('Task queue is empty  - all assignments submitted');
     return;
   }
 
@@ -60,6 +60,6 @@ export function logTaskQueue(): void {
   for (const [i, task] of queue.entries()) {
     const deadline = new Date(task.deadline);
     const hoursLeft = Math.round((deadline.getTime() - Date.now()) / (1000 * 60 * 60));
-    logger.debug(`  ${i + 1}. [${task.status}] ${task.title} (${task.course}) — ${hoursLeft}h left`);
+    logger.debug(`  ${i + 1}. [${task.status}] ${task.title} (${task.course})  - ${hoursLeft}h left`);
   }
 }

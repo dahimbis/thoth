@@ -15,7 +15,7 @@ export function setWebConfirmationHandler(
 }
 
 /**
- * Confirmation Gate — the ONLY step that requires human interaction.
+ * Confirmation Gate  - the ONLY step that requires human interaction.
  *
  * Before any submission, present details and wait for explicit confirmation.
  * Accepted: 'submit', 'yes', 'confirm', 'approved', 'go ahead'
@@ -31,6 +31,11 @@ export interface ConfirmationRequest {
   rubricCheck?: RubricCheckResult[];
   previewText?: string;
   quizSummary?: string;
+  // Preview Gate extensions
+  fullContent?: string;        // Complete document/post text for full preview
+  downloadUrl?: string;        // URL to download the generated file
+  diffView?: { original: string; revised: string }; // Side-by-side diff for revisions
+  formFields?: Array<{ label: string; value: string; type: string }>; // Google Form field values
 }
 
 const ACCEPTED_RESPONSES = ['submit', 'yes', 'confirm', 'approved', 'go ahead', 'y'];

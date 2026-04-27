@@ -4,7 +4,7 @@ import { conductResearch, formatCitations, type ResearchResult } from './researc
 import { logger } from '../ui/logger.js';
 
 /**
- * Writing Agent — generates assignment content through a multi-phase pipeline:
+ * Writing Agent  - generates assignment content through a multi-phase pipeline:
  *
  * Phase 1: Research (if external sources required)
  * Phase 2: Outline generation (JSON structured outline)
@@ -169,7 +169,7 @@ async function generateDraft(
 2. Be thorough and meet all rubric criteria
 3. Include in-text citations where evidence is used
 4. Maintain a logical flow between sections
-5. Write in your own words — do not copy sources verbatim
+5. Write in your own words  - do not copy sources verbatim
 ${input.wordLimit ? `6. Target word count: ${input.wordLimit}` : ''}
 ${input.citationStyle ? `7. Use ${input.citationStyle} citation format` : ''}
 
@@ -209,14 +209,14 @@ async function selfCritiqueAndRevise(
 [For each criterion, write: CRITERION | PASS or FAIL | brief note]
 
 === REVISED VERSION ===
-[The complete revised text — this is the final submission]`,
+[The complete revised text  - this is the final submission]`,
     prompt: `DRAFT:
 ${draft}
 
 ASSIGNMENT INSTRUCTIONS:
 ${input.instructions}
 
-${input.rubric ? `RUBRIC:\n${input.rubric}` : 'No rubric provided — evaluate against general academic quality standards.'}
+${input.rubric ? `RUBRIC:\n${input.rubric}` : 'No rubric provided  - evaluate against general academic quality standards.'}
 
 ${input.wordLimit ? `WORD LIMIT: ${input.wordLimit}` : ''}`,
     maxOutputTokens: 10000,

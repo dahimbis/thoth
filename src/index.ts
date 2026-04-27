@@ -3,6 +3,7 @@ import { startScheduler, stopScheduler } from './scheduler/cron.js';
 import { getNextTask } from './scheduler/task-queue.js';
 import { processAssignment } from './workflows/submit.js';
 import { closeBrowser } from './browser/browser.js';
+import { startScreenshotStream, stopScreenshotStream } from './browser/screenshot-stream.js';
 import { closeDb, initializeDatabase } from './db/index.js';
 import { showDashboard } from './ui/dashboard.js';
 import { startControlPanel, stopControlPanel } from './ui/control-panel.js';
@@ -13,15 +14,15 @@ import { emitLog, requestWebConfirmation } from './web/events.js';
 import { setDemoMode, isDemoMode, loadConfig } from './config.js';
 import { seedDemoData } from './workflows/demo.js';
 import { existsSync, mkdirSync } from 'fs';
-import { DATA_DIR, OUTPUTS_DIR, SCREENSHOTS_DIR } from './config.js';
+import { DATA_DIR, OUTPUTS_DIR, SCREENSHOTS_DIR, getScreenshotInterval } from './config.js';
 
 /**
- * Thoth — Autonomous LMS Agent
+ * Thoth  - Autonomous LMS Agent
  *
  * Entry point. Supports multiple operation modes:
  *
  *   npm start                     Web dashboard (default) on http://localhost:3000
- *   npm start -- --demo           Demo mode — no credentials needed, uses mock data
+ *   npm start -- --demo           Demo mode  - no credentials needed, uses mock data
  *   npm start -- --cli            CLI-only mode (no web server)
  *   npm start -- --interactive    CLI interactive control panel
  *   npm start -- --scan-only      Scan courses and exit
@@ -53,15 +54,15 @@ async function main(): Promise<void> {
   }
 
   console.log('');
-  console.log('  ╔════════════════════════════════════════╗');
-  console.log('  ║          THOTH — LMS Agent             ║');
+  console.log('  ╔════════════════════════════════════════� -');
+  console.log('  ║          THOTH  - LMS Agent             ║');
   console.log('  ║   Autonomous Brightspace Automation    ║');
   console.log('  ║         VIP Research Project           ║');
   console.log('  ╚════════════════════════════════════════╝');
   console.log('');
 
   if (demoMode) {
-    console.log('  ** DEMO MODE — using mock data, no credentials required **');
+    console.log('  ** DEMO MODE  - using mock data, no credentials required **');
     console.log('');
   }
 
@@ -87,11 +88,14 @@ async function main(): Promise<void> {
 
       startWebServer(port);
 
+      // Start screenshot stream for dashboard live view
+      startScreenshotStream({ intervalMs: getScreenshotInterval() });
+
       logger.success('Demo mode ready. Open the dashboard to explore.');
 
       // Simulate some log activity so the dashboard looks alive
       setTimeout(() => logger.info('Deadline check: 3 assignments due within 7 days'), 2000);
-      setTimeout(() => logger.info('Next deadline: "Problem Set 6" (MATH-201) — 24h left', { course: 'MATH-201' }), 4000);
+      setTimeout(() => logger.info('Next deadline: "Problem Set 6" (MATH-201)  - 24h left', { course: 'MATH-201' }), 4000);
       setTimeout(() => logger.warn('DEADLINE: "Problem Set 6" due in 24 hours', { course: 'MATH-201', status: 'WARNING' }), 6000);
 
       // Keep alive
@@ -115,6 +119,9 @@ async function main(): Promise<void> {
         return requestWebConfirmation(request);
       });
       startWebServer(port);
+
+      // Start screenshot stream for dashboard live view
+      startScreenshotStream({ intervalMs: getScreenshotInterval() });
     }
 
     // ── Startup ────────────────────────────────────
@@ -218,6 +225,7 @@ async function shutdown(): Promise<void> {
 
   stopControlPanel();
   stopScheduler();
+  stopScreenshotStream();
 
   try {
     await closeBrowser();

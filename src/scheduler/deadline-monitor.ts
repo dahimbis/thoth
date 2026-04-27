@@ -2,7 +2,7 @@ import { getPendingAssignments, hasReminderFired, recordReminder } from '../db/q
 import { logger } from '../ui/logger.js';
 
 /**
- * Deadline Monitor — checks for upcoming deadlines and fires reminders.
+ * Deadline Monitor  - checks for upcoming deadlines and fires reminders.
  *
  * Intervals:
  *   7 days before  -> informational reminder

@@ -11,7 +11,7 @@ import { logger } from '../ui/logger.js';
 import { existsSync, mkdirSync } from 'fs';
 
 /**
- * Startup Sequence — runs ONCE at agent start.
+ * Startup Sequence  - runs ONCE at agent start.
  *
  * Step 1: Load config + ensure directories
  * Step 2: Initialize database
@@ -22,7 +22,7 @@ import { existsSync, mkdirSync } from 'fs';
  */
 export async function runStartupSequence(): Promise<void> {
   const startTime = Date.now();
-  logger.info('═══ Thoth Agent — Startup Sequence ═══');
+  logger.info('═══ Thoth Agent  - Startup Sequence ═══');
 
   // Step 1: Config + directories
   logger.info('Step 1: Loading configuration...');

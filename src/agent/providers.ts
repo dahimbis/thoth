@@ -56,16 +56,16 @@ function initProviders(): ProviderRegistry {
 // If Portkey is down, we fall back to direct provider keys.
 
 export const MODELS = {
-  // Claude — used for document generation, rubric analysis, long-form writing
+  // Claude  - used for document generation, rubric analysis, long-form writing
   CLAUDE_SONNET: '@vertexai/anthropic.claude-sonnet-4-6',
   CLAUDE_HAIKU: '@vertexai/anthropic.claude-haiku-4-5@20251001',
 
-  // GPT — used for quizzes, classification, short-form tasks
+  // GPT  - used for quizzes, classification, short-form tasks
   GPT_MAIN: 'gpt-5.4',
   GPT_MINI: 'gpt-5.4-mini',
   GPT_NANO: 'gpt-5.4-nano',
 
-  // Gemini — available as alternative
+  // Gemini  - available as alternative
   GEMINI_PRO: 'gemini-2.5-pro',
   GEMINI_FLASH: 'gemini-2.5-flash',
 } as const;

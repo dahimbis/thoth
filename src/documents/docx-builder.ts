@@ -138,7 +138,7 @@ export async function buildDocx(config: DocumentConfig): Promise<string> {
             new Paragraph({
               children: [
                 new TextRun({
-                  text: `${author ?? ''} — ${course ?? ''}`,
+                  text: `${author ?? ''}  - ${course ?? ''}`,
                   size: 18,
                   italics: true,
                 }),
@@ -230,7 +230,7 @@ function parseContentToSections(
       continue;
     }
 
-    // Regular text — accumulate into current paragraph
+    // Regular text  - accumulate into current paragraph
     currentParagraph += (currentParagraph ? ' ' : '') + trimmed;
   }
 

@@ -59,8 +59,8 @@ export async function startControlPanel(): Promise<void> {
 
 function showBanner(): void {
   console.log('');
-  console.log(chalk.cyan('  ╔════════════════════════════════════════╗'));
-  console.log(chalk.cyan('  ║') + chalk.bold.white('      THOTH — Interactive Control       ') + chalk.cyan('║'));
+  console.log(chalk.cyan('  ╔════════════════════════════════════════� -'));
+  console.log(chalk.cyan('  ║') + chalk.bold.white('      THOTH  - Interactive Control       ') + chalk.cyan('║'));
   console.log(chalk.cyan('  ╚════════════════════════════════════════╝'));
   console.log('');
 }

@@ -5,6 +5,7 @@ import { extractPageText } from '../vision.js';
 import { getBrightspaceClient } from '../../api/client.js';
 import { logger } from '../../ui/logger.js';
 import { logAction } from '../../db/queries.js';
+import { emitNotification } from '../../web/notifications.js';
 
 export interface AssignmentInfo {
   title: string;
@@ -188,6 +189,15 @@ export async function getAssignmentDetails(
   const attachments = await page.evaluate(() => {
     const links = document.querySelectorAll<HTMLAnchorElement>('a[href*="viewContent"], a[href*="download"]');
     return Array.from(links).map((l) => l.getAttribute('href') ?? '').filter(Boolean);
+  });
+
+  // Notify about extracted data
+  const rubricCriteria = rubric ? rubric.split('\n').filter(l => l.trim()).length : 0;
+  emitNotification({
+    type: 'info',
+    category: 'data-extracted',
+    title: 'Assignment Data Extracted',
+    message: `Instructions: ${instructions.length} chars${rubric ? `, Rubric: ${rubricCriteria} criteria` : ''}${wordLimit ? `, Word limit: ${wordLimit}` : ''}${fileFormat ? `, Format: ${fileFormat}` : ''}`,
   });
 
   return { instructions, rubric, fileFormat, wordLimit, citationStyle, attachments };

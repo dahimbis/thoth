@@ -1,8 +1,9 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, resolve } from 'path';
-import { getConfig, SESSION_FILE, DATA_DIR, SCREENSHOTS_DIR } from '../config.js';
+import { getConfig, SESSION_FILE, DATA_DIR, SCREENSHOTS_DIR, getBrowserProfilePath } from '../config.js';
 import { logger } from '../ui/logger.js';
+import { emitBrowserAction } from './automation-tracker.js';
 
 let _browser: Browser | null = null;
 let _context: BrowserContext | null = null;
@@ -29,9 +30,33 @@ export async function launchBrowser(): Promise<Browser> {
   if (_browser?.isConnected()) return _browser;
 
   const config = getConfig();
+  const profilePath = getBrowserProfilePath();
 
   logger.info('Launching browser', { status: config.BROWSER_HEADLESS ? 'headless' : 'headed' });
 
+  // Session reuse: use persistent context with user's browser profile
+  if (profilePath) {
+    logger.info(`Using browser profile for session reuse: ${profilePath}`);
+    _context = await chromium.launchPersistentContext(profilePath, {
+      headless: config.BROWSER_HEADLESS,
+      viewport: { width: 1280, height: 900 },
+      args: [
+        '--disable-blink-features=AutomationControlled',
+        '--disable-dev-shm-usage',
+      ],
+    });
+    // Extract the browser from the persistent context
+    _browser = _context.browser()!;
+    _browser.on('disconnected', () => {
+      logger.warn('Browser disconnected');
+      _browser = null;
+      _context = null;
+      _page = null;
+    });
+    return _browser;
+  }
+
+  // Standard launch (no session reuse)
   _browser = await chromium.launch({
     headless: config.BROWSER_HEADLESS,
     args: [
@@ -171,6 +196,11 @@ export async function takeScreenshot(
   });
 
   logger.debug(`Screenshot saved: ${filename}`);
+  emitBrowserAction({
+    actionType: 'screenshot',
+    description: `Screenshot: ${name}`,
+    metadata: { screenshotName: filename, reason: name },
+  });
   return filepath;
 }
 
@@ -203,6 +233,17 @@ export async function isLoginPage(page: Page): Promise<boolean> {
   );
 }
 
+// ── Active Page Helper ───────────────────────────────
+
+/**
+ * Return the current page if it exists and is not closed, otherwise null.
+ * Does NOT create a new page or launch the browser.
+ */
+export function getActivePage(): Page | null {
+  if (_page && !_page.isClosed()) return _page;
+  return null;
+}
+
 // ── Cleanup ──────────────────────────────────────────
 
 export async function closeBrowser(): Promise<void> {
@@ -226,6 +267,13 @@ export async function getSessionCookies(): Promise<string> {
   if (!_context) return '';
   const cookies = await _context.cookies();
   return cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+}
+
+/**
+ * Check if the browser is currently running.
+ */
+export function isBrowserActive(): boolean {
+  return _browser !== null && _browser.isConnected();
 }
 
 /**

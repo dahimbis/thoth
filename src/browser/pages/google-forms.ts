@@ -6,6 +6,7 @@ import { getQuickModel } from '../../agent/providers.js';
 import { getStudentProfile, type StudentProfile } from '../../config.js';
 import { logger } from '../../ui/logger.js';
 import { logAction } from '../../db/queries.js';
+import { emitNotification } from '../../web/notifications.js';
 
 /**
  * Google Forms Automation Module
@@ -166,7 +167,7 @@ export async function extractGoogleForm(url: string): Promise<FormAnalysis> {
   const manualCount = fields.filter((f) => !f.autoFilled && !f.aiGenerated && f.required).length;
 
   logger.info(
-    `Form "${formData.title}": ${fields.length} fields — ${autoFilledCount} auto-filled, ${aiFilledCount} AI-filled, ${manualCount} need manual input`,
+    `Form "${formData.title}": ${fields.length} fields  - ${autoFilledCount} auto-filled, ${aiFilledCount} AI-filled, ${manualCount} need manual input`,
   );
 
   return {
@@ -608,6 +609,16 @@ export async function processGoogleForm(url: string): Promise<FormAnalysis> {
   logger.info(`  ${analysis.autoFilledCount} auto-filled from profile`);
   logger.info(`  ${analysis.aiFilledCount} filled by AI`);
   logger.info(`  ${analysis.manualCount} need manual input`);
+
+  // Emit notification for form detection
+  emitNotification({
+    type: 'action-required',
+    category: 'form-detected',
+    title: `Google Form Detected: ${analysis.title}`,
+    message: `${analysis.totalFields} fields found. ${analysis.autoFilledCount} auto-filled, ${analysis.aiFilledCount} AI-filled, ${analysis.manualCount} need review.`,
+    actionUrl: url,
+    actionLabel: 'Review Form',
+  });
 
   return analysis;
 }

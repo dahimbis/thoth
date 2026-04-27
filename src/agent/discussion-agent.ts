@@ -4,7 +4,7 @@ import { type PeerPost } from '../browser/pages/discussions.js';
 import { logger } from '../ui/logger.js';
 
 /**
- * Discussion Post Agent — generates original posts and peer replies.
+ * Discussion Post Agent  - generates original posts and peer replies.
  *
  * Rules:
  * - Original post adds a new angle, not repeating peers
@@ -81,7 +81,7 @@ async function generateOriginalPost(input: DiscussionInput): Promise<string> {
 1. Directly address the discussion prompt
 2. Add a unique perspective or angle that peers have not covered
 3. Support your points with reasoning or evidence
-4. Be specific — avoid generic statements
+4. Be specific  - avoid generic statements
 5. Write in first person, conversational academic tone
 ${input.minPostLength ? `6. Minimum length: ${input.minPostLength} words` : '6. Aim for 200-400 words'}
 
@@ -108,7 +108,7 @@ async function generateReply(
   const { text } = await generateText({
     model: getQuickModel(),
     system: `Write a thoughtful reply to a peer's discussion post. Requirements:
-1. Engage specifically with the peer's argument — reference their points
+1. Engage specifically with the peer's argument  - reference their points
 2. Add NEW content: a different perspective, additional evidence, or a follow-up question
 3. Do not simply agree or repeat what they said
 4. Be respectful but substantive

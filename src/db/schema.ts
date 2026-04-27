@@ -38,6 +38,7 @@ export const assignments = sqliteTable('assignments', {
   pointsValue: integer('points_value'),
   lastAction: text('last_action'),
   notes: text('notes'),
+  term: text('term'),              // Academic term, e.g., "Spring 2026"
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   updatedAt: text('updated_at'),
 });
@@ -86,3 +87,12 @@ export type NewAssignment = typeof assignments.$inferInsert;
 export type EmailLogEntry = typeof emailLog.$inferSelect;
 export type NewEmailLogEntry = typeof emailLog.$inferInsert;
 export type ActionLogEntry = typeof actionLog.$inferSelect;
+
+// ── Settings table (key-value store for persisted config) ──
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+});
+
+export type Setting = typeof settings.$inferSelect;

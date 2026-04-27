@@ -112,6 +112,10 @@ export function resolveConfirmation(
   return true;
 }
 
+export function getSSEClientCount(): number {
+  return clients.length;
+}
+
 export function getPendingConfirmations(): Array<{ id: string; request: unknown }> {
   return Array.from(pendingConfirmations.values()).map((p) => ({
     id: p.id,

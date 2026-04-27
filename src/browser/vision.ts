@@ -5,7 +5,7 @@ import { screenshotToBase64 } from './browser.js';
 import { logger } from '../ui/logger.js';
 
 /**
- * Vision module — converts page screenshots into structured data using AI.
+ * Vision module  - converts page screenshots into structured data using AI.
  *
  * Since we use browser accessibility snapshots (Playwright's built-in a11y tree)
  * as the primary method, this vision module is the FALLBACK for cases where:
@@ -17,7 +17,7 @@ import { logger } from '../ui/logger.js';
  * Fallback: Screenshot + AI vision model.
  */
 
-// ── Page Content Extraction (Primary — no AI cost) ───
+// ── Page Content Extraction (Primary  - no AI cost) ───
 
 /**
  * Extract structured text content from a page using DOM queries.
