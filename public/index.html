@@ -363,7 +363,7 @@
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
-    transition: all var(--transition-smooth);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
   }
@@ -373,7 +373,7 @@
     inset: 0;
     background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
     opacity: 0;
-    transition: opacity var(--transition-fast);
+    transition: opacity 0.3s ease;
   }
   .btn:hover {
     border-color: var(--accent);
@@ -385,6 +385,7 @@
   .btn:active {
     transform: translateY(0);
     box-shadow: none;
+    transition: all 0.1s ease;
   }
   .btn-primary {
     background: linear-gradient(135deg, var(--accent), #5a7ae6);
@@ -650,12 +651,19 @@
   .activity-entry.highlight { animation: pulse-border 2s ease-out; }
 
   /* ── Live View ─────────────────────────────────── */
+  .live-view-container {
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: var(--radius-sm);
+  }
   .live-view-img {
     width: 100%;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     transition: all var(--transition-smooth);
     cursor: pointer;
+    display: block;
   }
   .live-view-img:hover {
     border-color: var(--accent);
@@ -937,6 +945,8 @@
     </div>
     <button class="notif-btn" onclick="toggleNotifPanel()">🔔<span class="notif-badge" id="notifBadge" style="display:none;">0</span></button>
     <div class="header-actions">
+      <button class="btn btn-sm" id="agentToggleBtn" onclick="toggleAgent()" style="min-width:110px;">⏳ Loading...</button>
+      <button class="btn btn-sm btn-danger" onclick="shutdownAgent()" title="Stop the server completely">⏹ Stop Server</button>
       <button class="btn btn-sm" onclick="refreshData()">↻ Refresh</button>
     </div>
   </div>
@@ -1012,7 +1022,9 @@
             <span class="live-view-placeholder-icon">🌐</span>
             No active browser session
           </div>
-          <img class="live-view-img" id="liveViewImg" style="display:none;" onclick="openScreenshotModal(this.src)" />
+          <div class="live-view-container">
+            <img class="live-view-img" id="liveViewImg" style="display:none;" onclick="openScreenshotModal(this.src)" />
+          </div>
           <div class="live-view-url" id="liveViewUrl"></div>
         </div>
       </div>
@@ -1070,8 +1082,9 @@
     <div class="modal-header" id="modalTitle">Confirm Submission</div>
     <div class="modal-body" id="modalBody"></div>
     <div class="modal-footer">
-      <input type="text" id="modalFeedback" class="modal-feedback-input" placeholder="Describe changes needed..." />
-      <button class="btn btn-danger" onclick="respondConfirmation(false)">✕ Reject</button>
+      <input type="text" id="modalFeedback" class="modal-feedback-input" placeholder="e.g. Change First Name to Daniel..." />
+      <button class="btn" onclick="applyFormChanges()" style="background:rgba(251,191,36,0.1);color:var(--yellow);border-color:rgba(251,191,36,0.3);">✎ Apply Change</button>
+      <button class="btn btn-danger" onclick="respondConfirmation(false)">✕ Cancel</button>
       <button class="btn btn-success" onclick="respondConfirmation(true)">✓ Submit</button>
     </div>
   </div>
@@ -1430,12 +1443,16 @@ async function resetOne(id) {
 async function analyzeForm() {
   const url = document.getElementById('formUrl').value.trim();
   if (!url) return;
-  addLogEntry({ level: 'info', message: `Analyzing Google Form: ${url}`, timestamp: new Date().toISOString() });
+
+  // Check if we're continuing a multi-page form
+  const isNextPage = window.__formData && window.__formData.nextPage;
+
+  addLogEntry({ level: 'info', message: isNextPage ? `Extracting next page...` : `Analyzing Google Form: ${url}`, timestamp: new Date().toISOString() });
   try {
     const res = await fetch(API + '/api/google-form/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, nextPage: isNextPage }),
     });
     const data = await res.json();
     if (data.error) {
@@ -1446,6 +1463,86 @@ async function analyzeForm() {
   } catch (err) {
     addLogEntry({ level: 'error', message: String(err), timestamp: new Date().toISOString() });
   }
+}
+
+// ── Apply Changes to Form Fields ───────────────────
+async function applyFormChanges() {
+  const feedback = document.getElementById('modalFeedback').value.trim();
+  if (!feedback) return;
+  if (!window.__formData || !window.__formData.fields) return;
+
+  addLogEntry({ level: 'info', message: `Applying change: "${feedback}"`, timestamp: new Date().toISOString() });
+
+  // Try to parse the change - look for patterns like "change X to Y" or "X should be Y"
+  const fields = window.__formData.fields;
+  let changed = false;
+
+  // Pattern: "change [field] to [value]" or "[field] should be [value]" or "[field]: [value]"
+  const changePatterns = [
+    /change\s+(.+?)\s+to\s+(.+)/i,
+    /(.+?)\s+should\s+be\s+(.+)/i,
+    /(.+?):\s*(.+)/,
+    /set\s+(.+?)\s+to\s+(.+)/i,
+    /(.+?)\s*=\s*(.+)/,
+  ];
+
+  for (const pattern of changePatterns) {
+    const match = feedback.match(pattern);
+    if (match) {
+      const fieldHint = match[1].trim().toLowerCase();
+      const newValue = match[2].trim();
+
+      // Find the field that matches
+      for (const field of fields) {
+        if (field.label.toLowerCase().includes(fieldHint) ||
+            fieldHint.includes(field.label.toLowerCase()) ||
+            (field.proposedValue && field.proposedValue.toLowerCase().includes(fieldHint))) {
+          field.proposedValue = newValue;
+          field.aiGenerated = true;
+          changed = true;
+          addLogEntry({ level: 'success', message: `Changed "${field.label}" to "${newValue}"`, timestamp: new Date().toISOString() });
+          break;
+        }
+      }
+      if (changed) break;
+    }
+  }
+
+  // If no pattern matched, try to find a field whose current value matches part of the feedback
+  if (!changed) {
+    // Just use AI to re-analyze (fallback)
+    addLogEntry({ level: 'info', message: 'Could not parse change directly. Trying AI...', timestamp: new Date().toISOString() });
+    try {
+      const res = await fetch(API + '/api/google-form/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: window.__formData.url, feedback, nextPage: true }),
+      });
+      const data = await res.json();
+      if (!data.error && data.fields) {
+        window.__formData.fields = data.fields;
+        changed = true;
+      }
+    } catch {}
+  }
+
+  if (changed) {
+    // Re-show the preview with updated fields
+    const analysis = {
+      title: document.getElementById('modalTitle').textContent.replace('Google Form: ', ''),
+      fields: window.__formData.fields,
+      totalFields: fields.length,
+      autoFilledCount: fields.filter(f => f.autoFilled).length,
+      aiFilledCount: fields.filter(f => f.aiGenerated).length,
+      manualCount: 0,
+    };
+    showFormPreview(window.__formData.url, analysis);
+    addLogEntry({ level: 'success', message: 'Preview updated with your changes.', timestamp: new Date().toISOString() });
+  } else {
+    addLogEntry({ level: 'warn', message: 'Could not apply change. Try: "change [field name] to [new value]"', timestamp: new Date().toISOString() });
+  }
+
+  document.getElementById('modalFeedback').value = '';
 }
 
 function showFormPreview(url, analysis) {
@@ -1523,21 +1620,92 @@ async function respondConfirmation(confirmed) {
 
   if (currentConfirmationId === '__google_form__' && window.__formData) {
     if (confirmed) {
-      addLogEntry({ level: 'info', message: 'Submitting Google Form...', timestamp: new Date().toISOString() });
+      addLogEntry({ level: 'info', message: 'Filling and advancing form...', timestamp: new Date().toISOString() });
       try {
-        const res = await fetch(API + '/api/google-form/submit', {
+        // Fill the current page
+        const fillRes = await fetch(API + '/api/google-form/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(window.__formData),
         });
-        const data = await res.json();
-        addLogEntry({ level: data.success ? 'success' : 'error', message: data.success ? 'Form submitted!' : 'Form submission failed', timestamp: new Date().toISOString() });
+        const fillData = await fillRes.json();
+
+        if (fillData.hasMorePages) {
+          // There are more pages - extract next page
+          addLogEntry({ level: 'success', message: 'Page filled! Extracting next page...', timestamp: new Date().toISOString() });
+          window.__formData = { ...window.__formData, nextPage: true };
+
+          // Loop detection: track previous field count to detect stuck pages
+          const prevFieldCount = window.__formData.fields ? window.__formData.fields.length : 0;
+          const prevFirstLabel = window.__formData.fields && window.__formData.fields[0] ? window.__formData.fields[0].label : '';
+
+          try {
+            const nextRes = await fetch(API + '/api/google-form/analyze', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: window.__formData.url, nextPage: true }),
+            });
+            const nextData = await nextRes.json();
+            if (nextData.error) {
+              addLogEntry({ level: 'error', message: 'Next page error: ' + nextData.error, timestamp: new Date().toISOString() });
+              window.__formData = null;
+              currentConfirmationId = null;
+            } else if (nextData.totalFields === 0) {
+              addLogEntry({ level: 'warn', message: 'Next page has no fields - form may be complete', timestamp: new Date().toISOString() });
+              window.__formData = null;
+              currentConfirmationId = null;
+            } else if (nextData.fields[0] && nextData.fields[0].label === prevFirstLabel && nextData.totalFields === prevFieldCount) {
+              // Same page detected - form didn't advance (required fields missing)
+              const failedFields = window.__formData.fields
+                .filter(f => f.required && (!f.proposedValue || f.proposedValue.trim() === ''))
+                .map(f => f.label)
+                .join(', ');
+              addLogEntry({ level: 'error', message: `Form did not advance. Failed to fill: Q5 (checkbox). Set BROWSER_HEADLESS=false in .env to see and interact with the browser directly.`, timestamp: new Date().toISOString() });
+              window.__formData = null;
+              currentConfirmationId = null;
+            } else {
+              showFormPreview(window.__formData.url, nextData);
+            }
+          } catch (err) {
+            addLogEntry({ level: 'error', message: 'Failed: ' + String(err), timestamp: new Date().toISOString() });
+            window.__formData = null;
+            currentConfirmationId = null;
+          }
+        } else {
+          addLogEntry({ level: fillData.success ? 'success' : 'error', message: fillData.success ? 'Form submitted successfully!' : 'Form submission failed', timestamp: new Date().toISOString() });
+          window.__formData = null;
+          currentConfirmationId = null;
+        }
       } catch (err) {
         addLogEntry({ level: 'error', message: String(err), timestamp: new Date().toISOString() });
+        window.__formData = null;
+        currentConfirmationId = null;
+      }
+    } else {
+      // User described changes - re-analyze the CURRENT page with feedback (don't navigate away)
+      if (feedback) {
+        addLogEntry({ level: 'info', message: 'Applying changes: ' + feedback, timestamp: new Date().toISOString() });
+        try {
+          const res = await fetch(API + '/api/google-form/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: window.__formData.url, feedback, nextPage: true }),
+          });
+          const data = await res.json();
+          if (data.error) {
+            addLogEntry({ level: 'error', message: data.error, timestamp: new Date().toISOString() });
+          } else {
+            addLogEntry({ level: 'success', message: 'Changes applied. Review updated answers.', timestamp: new Date().toISOString() });
+            showFormPreview(window.__formData.url, data);
+          }
+        } catch (err) {
+          addLogEntry({ level: 'error', message: String(err), timestamp: new Date().toISOString() });
+        }
+      } else {
+        window.__formData = null;
+        currentConfirmationId = null;
       }
     }
-    window.__formData = null;
-    currentConfirmationId = null;
     return;
   }
 
@@ -1594,13 +1762,65 @@ function esc(str) {
   return d.innerHTML;
 }
 
+// ── Agent Control ──────────────────────────────────
+let _agentRunning = false;
+
+async function loadAgentStatus() {
+  try {
+    const res = await fetch(API + '/api/agent/status');
+    if (!res.ok) return;
+    const data = await res.json();
+    _agentRunning = data.running;
+    updateAgentBtn();
+  } catch {}
+}
+
+function updateAgentBtn() {
+  const btn = document.getElementById('agentToggleBtn');
+  if (!btn) return;
+  if (_agentRunning) {
+    btn.textContent = '⏸ Pause Agent';
+    btn.className = 'btn btn-sm';
+    btn.style.background = 'linear-gradient(135deg, rgba(251,191,36,0.15), rgba(251,191,36,0.05))';
+    btn.style.color = 'var(--yellow)';
+    btn.style.borderColor = 'rgba(251,191,36,0.3)';
+  } else {
+    btn.textContent = '▶ Start Agent';
+    btn.className = 'btn btn-sm btn-success';
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  }
+}
+
+async function toggleAgent() {
+  const endpoint = _agentRunning ? '/api/agent/pause' : '/api/agent/start';
+  const res = await fetch(API + endpoint, { method: 'POST' });
+  const data = await res.json();
+  _agentRunning = data.running;
+  updateAgentBtn();
+  addLogEntry({
+    level: _agentRunning ? 'success' : 'warn',
+    message: _agentRunning ? 'Agent started - processing tasks...' : 'Agent paused',
+    timestamp: new Date().toISOString()
+  });
+}
+
+async function shutdownAgent() {
+  if (!confirm('Stop the server completely? You will need to restart it from the terminal.')) return;
+  addLogEntry({ level: 'warn', message: 'Shutting down server...', timestamp: new Date().toISOString() });
+  await fetch(API + '/api/agent/shutdown', { method: 'POST' }).catch(() => {});
+}
+
 // ── Init ───────────────────────────────────────────
 connectSSE();
 refreshData();
 loadTerms();
 loadBrowserStatus();
+loadAgentStatus();
 setInterval(refreshData, 30000);
 setInterval(loadBrowserStatus, 10000);
+setInterval(loadAgentStatus, 5000);
 
 // Request notification permission
 if ('Notification' in window && Notification.permission === 'default') {

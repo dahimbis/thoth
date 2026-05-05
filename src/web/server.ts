@@ -213,14 +213,18 @@ export function createServer(): express.Express {
 
   // ── Google Forms ─────────────────────────────────
   app.post('/api/google-form/analyze', async (req, res) => {
-    const { url } = req.body as { url: string };
+    const { url, feedback, nextPage } = req.body as { url: string; feedback?: string; nextPage?: boolean };
     if (!url || !isGoogleFormUrl(url)) {
       res.status(400).json({ error: 'Invalid Google Form URL' });
       return;
     }
 
     try {
-      const analysis = await processGoogleForm(url);
+      if (feedback) {
+        logger.info(`User feedback for form: ${feedback}`);
+      }
+      // If nextPage is true, don't navigate back to the URL (we're already on page 2+)
+      const analysis = await processGoogleForm(url, { skipNavigation: nextPage });
       res.json(analysis);
     } catch (err) {
       res.status(500).json({ error: String(err) });
@@ -450,7 +454,51 @@ export function createServer(): express.Express {
     res.json({ success: true, message: resolved ? 'Feedback sent' : 'No pending confirmation found' });
   });
 
+  // ── Agent State (start/pause/stop) ────────────────
+  // Shared agent state accessible from both server and index.ts
+  app.get('/api/agent/status', (_req, res) => {
+    res.json(getAgentState());
+  });
+
+  app.post('/api/agent/start', (_req, res) => {
+    setAgentRunning(true);
+    logger.info('Agent started by user via dashboard');
+    res.json({ success: true, running: true });
+  });
+
+  app.post('/api/agent/pause', (_req, res) => {
+    setAgentRunning(false);
+    logger.info('Agent paused by user via dashboard');
+    res.json({ success: true, running: false });
+  });
+
+  app.post('/api/agent/shutdown', (_req, res) => {
+    logger.info('Shutdown requested via dashboard');
+    res.json({ success: true, message: 'Shutting down...' });
+    // Give the response time to send before killing the process
+    setTimeout(() => process.emit('SIGTERM'), 500);
+  });
+
   return app;
+}
+
+// ── Agent State ───────────────────────────────────────
+// Shared state so index.ts can check if the agent should be running
+let _agentRunning = false;
+
+export function isAgentRunning(): boolean {
+  return _agentRunning;
+}
+
+export function setAgentRunning(running: boolean): void {
+  _agentRunning = running;
+}
+
+export function getAgentState(): { running: boolean; mode: string } {
+  return {
+    running: _agentRunning,
+    mode: _agentRunning ? 'active' : 'paused',
+  };
 }
 
 export function startWebServer(port: number = 3000): void {

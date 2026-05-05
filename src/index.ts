@@ -11,6 +11,7 @@ import { setWebConfirmationHandler } from './ui/confirmation.js';
 import { logger, setLogLevel, setSSEEmitter } from './ui/logger.js';
 import { startWebServer } from './web/server.js';
 import { emitLog, requestWebConfirmation } from './web/events.js';
+import { isAgentRunning, setAgentRunning } from './web/server.js';
 import { setDemoMode, isDemoMode, loadConfig } from './config.js';
 import { seedDemoData } from './workflows/demo.js';
 import { existsSync, mkdirSync } from 'fs';
@@ -156,21 +157,30 @@ async function main(): Promise<void> {
       return;
     }
 
-    // Default: web mode
+    // Default: web mode — start paused, wait for user to click Start
     startScheduler();
-    logger.info('Entering task processing loop...');
-    await processTaskQueue();
-
-    logger.success('All tasks processed. Dashboard is running.');
+    logger.info('Agent is paused. Click "Start Agent" in the dashboard to begin processing.');
     logger.info(`Open http://localhost:${port} in your browser.`);
     logger.info('Press Ctrl+C to exit.');
 
+    // Poll for agent start, then process tasks
     await new Promise<void>((resolve) => {
+      const checkInterval = setInterval(async () => {
+        if (isAgentRunning()) {
+          clearInterval(checkInterval);
+          logger.info('Agent started. Processing tasks...');
+          await processTaskQueue();
+          logger.success('All tasks processed. Dashboard is running.');
+        }
+      }, 2000);
+
       process.on('SIGINT', () => {
+        clearInterval(checkInterval);
         logger.info('Shutdown signal received');
         resolve();
       });
       process.on('SIGTERM', () => {
+        clearInterval(checkInterval);
         logger.info('Shutdown signal received');
         resolve();
       });

@@ -31,6 +31,25 @@ export async function launchBrowser(): Promise<Browser> {
 
   const config = getConfig();
   const profilePath = getBrowserProfilePath();
+  const remoteUrl = config.BROWSER_REMOTE_URL;
+
+  // Remote debugging: connect to already-running Chrome
+  // Launch Chrome with: chrome.exe --remote-debugging-port=9222
+  if (remoteUrl) {
+    logger.info(`Connecting to existing browser at ${remoteUrl}`);
+    _browser = await chromium.connectOverCDP(remoteUrl);
+    _browser.on('disconnected', () => {
+      logger.warn('Remote browser disconnected');
+      _browser = null;
+      _context = null;
+      _page = null;
+    });
+    // Use the first existing context (your logged-in session)
+    const contexts = _browser.contexts();
+    _context = contexts[0] ?? await _browser.newContext();
+    logger.info('Connected to existing browser session');
+    return _browser;
+  }
 
   logger.info('Launching browser', { status: config.BROWSER_HEADLESS ? 'headless' : 'headed' });
 

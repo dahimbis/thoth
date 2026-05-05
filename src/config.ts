@@ -6,22 +6,25 @@ const envSchema = z.object({
   STUDENT_FIRST_NAME: z.string().min(1),
   STUDENT_LAST_NAME: z.string().min(1),
   STUDENT_EMAIL: z.string().email(),
-  STUDENT_ID: z.string().min(1), // e.g., N12345678
+  STUDENT_ID: z.string().default(''),   // Optional when using session reuse
   STUDENT_PHONE: z.string().optional(),
   STUDENT_MAJOR: z.string().optional(),
   STUDENT_YEAR: z.string().optional(), // Freshman, Sophomore, Junior, Senior, Graduate
 
-  // Brightspace
+  // Brightspace  - optional when BROWSER_PROFILE_PATH is set (session reuse)
   BRIGHTSPACE_BASE_URL: z.string().url().default('https://brightspace.nyu.edu'),
-  BRIGHTSPACE_USERNAME: z.string().min(1),
-  BRIGHTSPACE_PASSWORD: z.string().min(1),
+  BRIGHTSPACE_USERNAME: z.string().default(''),  // Not needed with session reuse
+  BRIGHTSPACE_PASSWORD: z.string().default(''),  // Not needed with session reuse
   BRIGHTSPACE_TOTP_SECRET: z.string().optional(),
 
-  // AI Providers  - Portkey gateway (primary)
-  PORTKEY_GATEWAY_URL: z.string().url().default('https://ai-gateway.apps.cloud.rt.nyu.edu/v1'),
-  PORTKEY_API_KEY: z.string().min(1),
+  // AI Providers  - OpenRouter is the default (GPT-4o-mini for everything)
+  OPENROUTER_API_KEY: z.string().optional(),  // Default AI provider via OpenRouter
 
-  // Direct provider keys (fallback)
+  // Portkey gateway (optional - NYU internal)
+  PORTKEY_GATEWAY_URL: z.string().url().default('https://ai-gateway.apps.cloud.rt.nyu.edu/v1'),
+  PORTKEY_API_KEY: z.string().optional(),
+
+  // Direct provider keys (optional fallback)
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
 
@@ -47,9 +50,10 @@ const envSchema = z.object({
     .transform((v) => v === 'true'),
 
   // Computer-use capabilities
-  SCREENSHOT_INTERVAL: z.coerce.number().default(2000), // milliseconds between dashboard screenshot captures
-  BROWSER_PROFILE_PATH: z.string().optional(),           // Path to Chrome/Edge user data dir for session reuse
-  ACTIVE_TERM: z.string().optional(),                    // e.g., "Spring 2026"  - filters courses to this term
+  SCREENSHOT_INTERVAL: z.coerce.number().default(2000),
+  BROWSER_PROFILE_PATH: z.string().optional(),
+  BROWSER_REMOTE_URL: z.string().optional(),  // e.g. http://localhost:9222 for remote debugging
+  ACTIVE_TERM: z.string().optional(),
 });
 
 export type Config = z.infer<typeof envSchema>;
@@ -69,17 +73,18 @@ export function setDemoMode(enabled: boolean): void {
 const DEMO_CONFIG: Config = {
   STUDENT_FIRST_NAME: 'Alex',
   STUDENT_LAST_NAME: 'Demo',
-  STUDENT_EMAIL: 'ad1234@nyu.edu',
+  STUDENT_EMAIL: 'demo@example.edu',
   STUDENT_ID: 'N00000000',
-  STUDENT_PHONE: '212-555-0000',
-  STUDENT_MAJOR: 'Computer Science',
-  STUDENT_YEAR: 'Junior',
+  STUDENT_PHONE: '',
+  STUDENT_MAJOR: '',
+  STUDENT_YEAR: '',
   BRIGHTSPACE_BASE_URL: 'https://brightspace.nyu.edu',
   BRIGHTSPACE_USERNAME: 'demo',
   BRIGHTSPACE_PASSWORD: 'demo',
   BRIGHTSPACE_TOTP_SECRET: undefined,
   PORTKEY_GATEWAY_URL: 'https://ai-gateway.apps.cloud.rt.nyu.edu/v1',
-  PORTKEY_API_KEY: 'demo-key',
+  PORTKEY_API_KEY: undefined,
+  OPENROUTER_API_KEY: undefined,
   ANTHROPIC_API_KEY: undefined,
   OPENAI_API_KEY: undefined,
   TAVILY_API_KEY: undefined,
@@ -94,6 +99,7 @@ const DEMO_CONFIG: Config = {
   BROWSER_HEADLESS: true,
   SCREENSHOT_INTERVAL: 2000,
   BROWSER_PROFILE_PATH: undefined,
+  BROWSER_REMOTE_URL: undefined,
   ACTIVE_TERM: undefined,
 };
 
@@ -101,7 +107,14 @@ export function loadConfig(): Config {
   if (_config) return _config;
 
   if (_demoMode) {
-    _config = DEMO_CONFIG;
+    // In demo mode, use demo config but pick up API keys from .env if available
+    _config = {
+      ...DEMO_CONFIG,
+      OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || undefined,
+      PORTKEY_API_KEY: process.env.PORTKEY_API_KEY || undefined,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY || undefined,
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || undefined,
+    };
     return _config;
   }
 
