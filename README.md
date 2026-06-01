@@ -1,6 +1,6 @@
 # Thoth - The Autonomous LMS Agent
 
-An autonomous AI agent that interacts with Brightspace (D2L) Learning Management Systems. Built as part of the **AI in Research VIP Project** to demonstrate and study how AI agents can autonomously navigate, complete, and submit academic work, informing academic integrity policies and system defenses.
+An autonomous AI agent that interacts with Brightspace (D2L) Learning Management Systems and google forms. Built as part of the **AI in Research VIP Project** to demonstrate and study how AI agents can autonomously navigate, complete, and submit academic work, informing academic integrity policies and system defenses.
 
 ## What It Does
 
