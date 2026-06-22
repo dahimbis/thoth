@@ -461,8 +461,7 @@ All tests use property-based testing with 20 randomized iterations per property.
 ## Security Notes
 
 - Credentials are stored in `.env` (gitignored)
-- Browser session cookies are saved to `data/session.json` (gitignored)
-- No credentials are hardcoded in source code
+- Browser session cookies are saved to `data/session.json`
 - File Manager enforces path security: all operations are sandboxed to the project root
 - The agent never pushes data to external services (only to your LMS and configured AI providers)
 - All submissions require explicit user confirmation
